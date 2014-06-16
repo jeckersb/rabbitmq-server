@@ -336,6 +336,7 @@ broker_start() ->
     Plugins = rabbit_plugins:setup(),
     ToBeLoaded = Plugins ++ ?APPS,
     start_apps(ToBeLoaded),
+    ok = notify_startup(),
     ok = log_broker_started(rabbit_plugins:active()).
 
 start_it(StartFun) ->
@@ -856,3 +857,19 @@ start_fhc() ->
     rabbit_sup:start_restartable_child(
       file_handle_cache,
       [fun rabbit_alarm:set_alarm/1, fun rabbit_alarm:clear_alarm/1]).
+
+have_systemd_notify() ->
+    try sd_notify:module_info() of
+        _InfoList ->
+            true
+    catch
+        _:_ ->
+            false
+    end.
+
+notify_startup() ->
+    case have_systemd_notify() of
+        true ->
+            sd_notify:sd_notify(0, "READY=1");
+        _ -> ok
+    end.
